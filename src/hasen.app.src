@@ -1,10 +1,11 @@
 {application, hasen,
- [{description, "An OTP library"},
+ [{description, "RabbitMQ connection and channel pooling"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    lager
    ]},
   {env,[]},
   {modules, []},
