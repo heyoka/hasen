@@ -53,12 +53,14 @@ create_channel(Server) ->
 %%%===================================================================
 
 init([Config]) ->
+   io:format("~p starting~n" ,[?MODULE]),
    process_flag(trap_exit, true),
    Reconnector = backoff:new({100, 4200}),
-   {ok, Reconnector1} = backoff:execute(Reconnector, connect),
+   erlang:send_after(0, self() , connect),
    AmqpParams = amqp_options:parse(Config),
+   io:format("params ~p~n",[AmqpParams]),
    {ok, #state{
-      reconnector = Reconnector1,
+      reconnector = Reconnector,
       config = AmqpParams
    }}.
 
@@ -70,12 +72,13 @@ handle_call(checkout_channel, _From, State = #state{connection = nil}) ->
    {reply, {error, disconnected}, State};
 handle_call(checkout_channel, _From, State = #state{channels = Channels}) when length(Channels) >= ?MAX_CHANNELS ->
    {reply, {error, out_of_channels}, State};
-handle_call(checkout_channel, From, State = #state{connection = Conn, channels = Channels, monitors = Monitors}) ->
+handle_call(checkout_channel, {FromPid, _From},
+    State = #state{connection = Conn, channels = Channels, monitors = Monitors}) ->
    case start_channel(Conn) of
       {ok, C} = Res ->
          link(C),
-         MonitorRef = monitor(process, From),
-         NewMonitors = Monitors#{From => MonitorRef},
+         MonitorRef = monitor(process, FromPid),
+         NewMonitors = Monitors#{FromPid => MonitorRef},
          {reply, Res, State#state{channels = [C | Channels], monitors = NewMonitors}};
       {error, Reason} = ERes ->
          lager:error("Error starting channel: ~p", [Reason]),
@@ -95,7 +98,7 @@ handle_cast(_Request, State = #state{}) ->
    {noreply, State}.
 
 handle_info(connect, State) ->
-   lager:debug("[~p] connect to rmq",[?MODULE]),
+   io:format("[~p] connect to rmq",[?MODULE]),
    NewState = start_connection(State),
    {noreply, NewState};
 
@@ -128,8 +131,8 @@ handle_info({'EXIT', ChanPid, Reason}, State=#state{channels = Channels, monitor
 handle_info(_Info, State = #state{}) ->
    {noreply, State}.
 
-terminate(_Reason, _State = #state{}) ->
-   ok.
+terminate(_Reason, _State = #state{connection = Conn}) ->
+   amqp_connection:close(Conn).
 
 code_change(_OldVsn, State = #state{}, _Extra) ->
    {ok, State}.
@@ -141,9 +144,9 @@ start_connection(State = #state{config = Config, reconnector = Recon}) ->
    case amqp_connection:start(Config) of
       {ok, Conn} ->
          link(Conn),
-         NState = State#state{connection = Conn, reconnector = backoff:reset(Recon)},
-         NState;
+         State#state{connection = Conn, reconnector = backoff:reset(Recon)};
       {error, Error} ->
+         io:format("Error starting amqp connection: ~p :: ~p",[Config, Error]),
          lager:warning("Error starting amqp connection: ~p :: ~p",[Config, Error]),
          {ok, Reconnector} = backoff:execute(Recon, connect),
          State#state{connection = nil, reconnector = Reconnector}

@@ -13,9 +13,12 @@
 %% API
 -export([parse/1, parse/2]).
 
--spec parse(list()|map()) -> #amqp_params_network{}.
+-spec parse(list()|map()|#amqp_params_network{}) -> #amqp_params_network{}.
+parse(Opts) when is_record(Opts, amqp_params_network) ->
+   Opts;
 parse(Opts) ->
    parse(Opts, #{}).
+
 -spec parse(list()|map(), map()) -> #amqp_params_network{}.
 parse([], Acc) -> amqp_params(maps:to_list(Acc));
 
