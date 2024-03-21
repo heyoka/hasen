@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author heyoka
-%%% @copyright (C) 2020, <COMPANY>
+%%% @copyright (C) 2020
 %%% @doc
 %%%
 %%% @end
@@ -42,9 +42,9 @@ parse([{connection_timeout, ConnTimeout} | R], Acc) when is_integer(ConnTimeout)
    parse(R, Acc#{connection_timeout => ConnTimeout});
 parse([{ssl, false} | R], Acc) ->
    parse(R, Acc#{ssl => false});
-parse([{ssl, true} | R], Acc) ->
-   Opts = faxe_config:get_ssl_opts(amqp),
-   parse(R, Acc#{ssl => true, ssl_opts => Opts});
+%%parse([{ssl, true} | R], Acc) ->
+%%   Opts = faxe_config:get_ssl_opts(amqp),
+%%   parse(R, Acc#{ssl => true, ssl_opts => Opts});
 parse([_ | R], Acc) ->
    parse(R, Acc).
 

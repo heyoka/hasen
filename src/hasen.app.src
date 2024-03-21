@@ -2,6 +2,7 @@
  [{description, "RabbitMQ connection and channel pooling"},
   {vsn, "0.1.0"},
   {registered, []},
+  {mod, { hasen_app, []}},
   {applications,
    [kernel,
     stdlib,
